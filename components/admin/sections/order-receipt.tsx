@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { Loader2, Printer, X } from 'lucide-react'
 import { formatBRL } from '@/lib/format'
 import {
@@ -207,18 +206,21 @@ function Receipt({
     <div>
       {/* Cabeçalho / dados da loja */}
       <header className="text-center">
-        <Image
+        {/* Logo oficial da loja. Usamos <img> nativo (não next/image) para
+            garantir carregamento direto do caminho público e impressão
+            confiável pelo navegador, sem otimizador nem checagem de CORS. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={store.logoUrl || '/images/logo.png'}
           alt={store.storeName}
-          width={741}
-          height={672}
-          sizes={thermal ? '160px' : '220px'}
-          priority
-          unoptimized
-          crossOrigin="anonymous"
-          className={`mx-auto w-auto object-contain ${
-            thermal ? 'h-16' : 'h-24'
-          }`}
+          style={{
+            width: thermal ? 90 : 140,
+            height: 'auto',
+            objectFit: 'contain',
+            printColorAdjust: 'exact',
+            WebkitPrintColorAdjust: 'exact',
+          }}
+          className="mx-auto"
         />
         <div
           className={`mt-2 ${thermal ? 'text-[10px]' : 'text-xs text-black/70'}`}
