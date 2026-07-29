@@ -76,6 +76,10 @@ export function OrderReceiptModal({
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       {/* Estilos de impressão: oculta tudo, exibe só o comprovante. */}
       <style>{`
+        .receipt-logo {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
         @media print {
           body * { visibility: hidden !important; }
           #receipt-print-area, #receipt-print-area * { visibility: visible !important; }
@@ -88,12 +92,19 @@ export function OrderReceiptModal({
             padding: 0 !important;
             box-shadow: none !important;
           }
+          .receipt-logo {
+            display: block !important;
+            height: auto !important;
+            object-fit: contain !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .no-print { display: none !important; }
         }
         ${
           format === 'thermal'
-            ? '@media print { @page { size: 80mm auto; margin: 4mm; } }'
-            : '@media print { @page { size: A4; margin: 14mm; } }'
+            ? '@media print { @page { size: 80mm auto; margin: 4mm; } .receipt-logo { width: 90px !important; } }'
+            : '@media print { @page { size: A4; margin: 14mm; } .receipt-logo { width: 140px !important; } }'
         }
       `}</style>
 
@@ -213,14 +224,9 @@ function Receipt({
         <img
           src={store.logoUrl || '/images/logo.png'}
           alt={store.storeName}
-          style={{
-            width: thermal ? 90 : 140,
-            height: 'auto',
-            objectFit: 'contain',
-            printColorAdjust: 'exact',
-            WebkitPrintColorAdjust: 'exact',
-          }}
-          className="mx-auto"
+          className={`receipt-logo mx-auto h-auto object-contain ${
+            thermal ? 'w-[90px]' : 'w-[140px]'
+          }`}
         />
         <div
           className={`mt-2 ${thermal ? 'text-[10px]' : 'text-xs text-black/70'}`}
