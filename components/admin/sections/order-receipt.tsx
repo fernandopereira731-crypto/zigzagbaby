@@ -206,36 +206,32 @@ function Receipt({
   return (
     <div>
       {/* Cabeçalho / dados da loja */}
-      <header className={thermal ? 'text-center' : 'text-center'}>
-        {store.logoUrl ? (
-          <div
-            className={`relative mx-auto ${thermal ? 'h-12 w-12' : 'h-16 w-16'}`}
-          >
-            <Image
-              src={store.logoUrl || '/placeholder.svg'}
-              alt={store.storeName}
-              fill
-              sizes="64px"
-              className="object-contain"
-              crossOrigin="anonymous"
-              unoptimized
-            />
-          </div>
-        ) : null}
-        <h1
-          className={`font-bold uppercase tracking-wide ${
-            thermal ? 'mt-1 text-sm' : 'mt-2 text-xl'
+      <header className="text-center">
+        <Image
+          src={store.logoUrl || '/images/logo.png'}
+          alt={store.storeName}
+          width={741}
+          height={672}
+          sizes={thermal ? '160px' : '220px'}
+          priority
+          unoptimized
+          crossOrigin="anonymous"
+          className={`mx-auto w-auto object-contain ${
+            thermal ? 'h-16' : 'h-24'
           }`}
+        />
+        <div
+          className={`mt-2 ${thermal ? 'text-[10px]' : 'text-xs text-black/70'}`}
         >
-          {store.storeName}
-        </h1>
-        <div className={thermal ? 'text-[10px]' : 'text-xs text-black/70'}>
           {store.cnpj && <p>CNPJ: {store.cnpj}</p>}
           {store.address && <p>{store.address}</p>}
           {(store.city || store.state) && (
             <p>{[store.city, store.state].filter(Boolean).join(' - ')}</p>
           )}
           {store.phone && <p>Tel/WhatsApp: {store.phone}</p>}
+          {store.whatsapp && store.whatsapp !== store.phone && (
+            <p>WhatsApp: {store.whatsapp}</p>
+          )}
           {store.instagram && <p>Instagram: {store.instagram}</p>}
         </div>
       </header>
@@ -428,8 +424,12 @@ function Receipt({
 
       {divider}
 
-      <p className={`text-center ${thermal ? 'text-[10px]' : 'text-xs text-black/60'}`}>
-        Obrigado pela preferência!
+      <p
+        className={`text-center font-medium ${
+          thermal ? 'text-[10px] leading-tight' : 'text-xs text-black/70'
+        }`}
+      >
+        {'Obrigado pela preferência! ❤️ Esperamos você novamente.'}
       </p>
     </div>
   )

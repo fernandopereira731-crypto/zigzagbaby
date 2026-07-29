@@ -35,9 +35,9 @@ export const EMPTY_STORE_SETTINGS: StoreSettings = {
   phone: null,
   whatsapp: null,
   instagram: null,
-  exchangeDays: 30,
+  exchangeDays: 10,
   exchangePolicy:
-    'Trocas em até 30 dias mediante apresentação deste comprovante. A peça deve estar sem sinais de uso, com etiqueta e em perfeito estado.',
+    'Trocas em até 10 dias mediante apresentação deste comprovante. A peça deve estar sem sinais de uso, com etiqueta e em perfeito estado.',
 }
 
 function client() {
@@ -58,7 +58,7 @@ function mapRow(row: any): StoreSettings {
     phone: row.phone ?? null,
     whatsapp: row.whatsapp ?? null,
     instagram: row.instagram ?? null,
-    exchangeDays: Number(row.exchange_days) || 30,
+    exchangeDays: Number(row.exchange_days) || 10,
     exchangePolicy: row.exchange_policy ?? EMPTY_STORE_SETTINGS.exchangePolicy,
   }
 }
@@ -96,7 +96,7 @@ export async function saveStoreSettings(
       instagram: input.instagram?.trim() || null,
       exchange_days: Number.isFinite(input.exchangeDays)
         ? Math.max(0, Math.trunc(input.exchangeDays))
-        : 30,
+        : 10,
       exchange_policy:
         input.exchangePolicy.trim() || EMPTY_STORE_SETTINGS.exchangePolicy,
       updated_at: new Date().toISOString(),
