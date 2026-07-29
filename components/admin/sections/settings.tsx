@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Store,
   Share2,
@@ -8,11 +8,19 @@ import {
   CreditCard,
   LineChart,
   Check,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { WhatsAppIcon } from '@/components/store/whatsapp-icon'
 import { InstagramIcon, FacebookIcon } from '@/components/store/social-icons'
 import { Panel, Field, TextInput, MoneyInput, PrimaryButton } from '../ui'
+import {
+  getStoreSettings,
+  saveStoreSettings,
+  EMPTY_STORE_SETTINGS,
+  type StoreSettings,
+} from '../store-settings-service'
 
 const tabs = [
   { id: 'loja', label: 'Loja', icon: Store },
@@ -26,6 +34,68 @@ type TabId = (typeof tabs)[number]['id']
 
 export function SettingsSection() {
   const [tab, setTab] = useState<TabId>('loja')
+  const [store, setStore] = useState<StoreSettings>(EMPTY_STORE_SETTINGS)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      try {
+        const data = await getStoreSettings()
+        if (active) setStore(data)
+      } catch (err) {
+        if (active)
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Não foi possível carregar as configurações.',
+          )
+      } finally {
+        if (active) setLoading(false)
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  function setField<K extends keyof StoreSettings>(
+    key: K,
+    value: StoreSettings[K],
+  ) {
+    setStore((prev) => ({ ...prev, [key]: value }))
+    setSaved(false)
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    setSaved(false)
+    try {
+      await saveStoreSettings(store)
+      setSaved(true)
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível salvar as configurações.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span className="ml-2 text-sm">Carregando configurações...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5">
@@ -54,25 +124,98 @@ export function SettingsSection() {
       </div>
 
       <form
-        onSubmit={(e) => e.preventDefault()}
+        onSubmit={(e) => {
+          e.preventDefault()
+          handleSave()
+        }}
         className="space-y-5"
       >
         {tab === 'loja' && (
           <Panel className="space-y-4 p-5">
             <SectionTitle icon={Store} title="Dados da loja" />
+            <p className="text-xs text-muted-foreground">
+              Estas informações aparecem no comprovante de pedido.
+            </p>
+            <Field label="Nome da loja">
+              <TextInput
+                value={store.storeName}
+                onChange={(e) => setField('storeName', e.target.value)}
+                placeholder="Zig Zag Baby"
+              />
+            </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Endereço">
-                <TextInput defaultValue="" placeholder="Informe o endereço da loja" />
+              <Field label="CNPJ" hint="Opcional">
+                <TextInput
+                  value={store.cnpj ?? ''}
+                  onChange={(e) => setField('cnpj', e.target.value)}
+                  placeholder="00.000.000/0000-00"
+                />
               </Field>
-              <Field label="Cidade">
-                <TextInput defaultValue="Curvelo - MG" />
+              <Field label="URL do logo" hint="Opcional">
+                <TextInput
+                  value={store.logoUrl ?? ''}
+                  onChange={(e) => setField('logoUrl', e.target.value)}
+                  placeholder="https://..."
+                />
               </Field>
             </div>
-            <Field label="Horário de funcionamento">
-              <TextInput defaultValue="" placeholder="Informe o horário de funcionamento" />
+            <Field label="Endereço">
+              <TextInput
+                value={store.address ?? ''}
+                onChange={(e) => setField('address', e.target.value)}
+                placeholder="Rua, número, bairro"
+              />
             </Field>
-            <Field label="WhatsApp de atendimento">
-              <TextInput defaultValue="" placeholder="Informe o WhatsApp de atendimento" />
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Cidade">
+                <TextInput
+                  value={store.city ?? ''}
+                  onChange={(e) => setField('city', e.target.value)}
+                  placeholder="Curvelo"
+                />
+              </Field>
+              <Field label="Estado">
+                <TextInput
+                  value={store.state ?? ''}
+                  onChange={(e) => setField('state', e.target.value)}
+                  placeholder="MG"
+                />
+              </Field>
+              <Field label="CEP">
+                <TextInput
+                  value={store.zipCode ?? ''}
+                  onChange={(e) => setField('zipCode', e.target.value)}
+                  placeholder="00000-000"
+                />
+              </Field>
+            </div>
+            <Field label="Telefone / WhatsApp de atendimento">
+              <TextInput
+                value={store.phone ?? ''}
+                onChange={(e) => setField('phone', e.target.value)}
+                placeholder="(38) 99999-9999"
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Prazo para troca (dias)">
+                <TextInput
+                  type="number"
+                  min={0}
+                  value={String(store.exchangeDays)}
+                  onChange={(e) =>
+                    setField('exchangeDays', Number(e.target.value) || 0)
+                  }
+                />
+              </Field>
+            </div>
+            <Field label="Política de troca (resumo)">
+              <textarea
+                value={store.exchangePolicy}
+                onChange={(e) => setField('exchangePolicy', e.target.value)}
+                rows={3}
+                className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                placeholder="Descreva as regras resumidas de troca"
+              />
             </Field>
           </Panel>
         )}
@@ -83,13 +226,23 @@ export function SettingsSection() {
             <Field label="WhatsApp">
               <div className="relative">
                 <WhatsAppIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-whatsapp" />
-                <TextInput defaultValue="" placeholder="Informe o número do WhatsApp" className="pl-11" />
+                <TextInput
+                  value={store.whatsapp ?? ''}
+                  onChange={(e) => setField('whatsapp', e.target.value)}
+                  placeholder="Informe o número do WhatsApp"
+                  className="pl-11"
+                />
               </div>
             </Field>
             <Field label="Instagram">
               <div className="relative">
                 <InstagramIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary-foreground" />
-                <TextInput defaultValue="@zigzagbaby" className="pl-11" />
+                <TextInput
+                  value={store.instagram ?? ''}
+                  onChange={(e) => setField('instagram', e.target.value)}
+                  placeholder="@zigzagbaby"
+                  className="pl-11"
+                />
               </div>
             </Field>
             <Field label="Facebook">
@@ -160,10 +313,31 @@ export function SettingsSection() {
           </Panel>
         )}
 
-        <div className="flex justify-end">
-          <PrimaryButton type="submit">
-            <Check className="h-4 w-4" />
-            Salvar alterações
+        {error && (
+          <p className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </p>
+        )}
+
+        <div className="flex items-center justify-end gap-3">
+          {saved && !saving && (
+            <span className="text-sm font-semibold text-whatsapp">
+              Alterações salvas
+            </span>
+          )}
+          <PrimaryButton type="submit" disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4" />
+                Salvar alterações
+              </>
+            )}
           </PrimaryButton>
         </div>
       </form>
