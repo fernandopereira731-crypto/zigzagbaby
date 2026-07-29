@@ -19,7 +19,20 @@ export type AdminProductRow = {
   category: string
   brand: string
   price: number
+  /** Preço de venda efetivo (promo/pix quando houver, senão price). */
+  effectivePrice: number
+  /** Preço de custo (dado sensível, somente admin). */
+  cost: number
+  /** Margem em reais = effectivePrice - cost. */
+  margin: number
+  /** Margem percentual sobre o preço de venda (0 quando não há preço). */
+  marginPercent: number
   stock: number
+  lowStockThreshold: number
+  /** true quando 0 < stock <= lowStockThreshold. */
+  lowStock: boolean
+  /** true quando está entre os mais vendidos dos últimos 30 dias. */
+  bestSeller: boolean
   sizes: string[]
   status: ProductStatus
 }
@@ -36,7 +49,11 @@ export type ProductFormValues = {
   price: number
   pixPrice: number | null
   promoPrice: number | null
+  /** Preço de custo (armazenado na tabela admin-only product_costs). */
+  costPrice: number
   stock: number
+  /** Limite para o alerta de estoque baixo. */
+  lowStockThreshold: number
   status: ProductStatus
   sku: string
   barcode: string
@@ -106,6 +123,58 @@ async function uploadPhotos(
   return urls
 }
 
+/** Preço de venda efetivo: usa promo/pix quando forem menores que o preço cheio. */
+export function effectiveSalePrice(
+  price: number,
+  pixPrice: number | null,
+  promoPrice: number | null,
+): number {
+  const candidates = [price, pixPrice, promoPrice].filter(
+    (v): v is number => typeof v === 'number' && v > 0,
+  )
+  return candidates.length ? Math.min(...candidates) : price || 0
+}
+
+/** Margem em reais e percentual a partir do preço efetivo e do custo. */
+export function computeMargin(salePrice: number, cost: number) {
+  const margin = salePrice - cost
+  const marginPercent = salePrice > 0 ? (margin / salePrice) * 100 : 0
+  return { margin, marginPercent }
+}
+
+/**
+ * Retorna o conjunto de product_ids mais vendidos nos últimos 30 dias
+ * (pedidos pagos/enviados/entregues), limitado ao top N por quantidade.
+ */
+async function getBestSellerIds(limit = 5): Promise<Set<string>> {
+  const supabase = client()
+  const since = new Date()
+  since.setDate(since.getDate() - 30)
+
+  // Busca os pedidos válidos da janela e seus itens (com product_id).
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('product_id, quantity, orders!inner ( created_at, status )')
+    .gte('orders.created_at', since.toISOString())
+    .not('product_id', 'is', null)
+  if (error || !data) return new Set<string>()
+
+  const validStatuses = new Set(['paid', 'processing', 'shipped', 'delivered'])
+  const soldMap = new Map<string, number>()
+  for (const it of data as any[]) {
+    const status = it.orders?.status
+    if (status && !validStatuses.has(status)) continue
+    const id = it.product_id as string
+    soldMap.set(id, (soldMap.get(id) ?? 0) + (it.quantity ?? 0))
+  }
+  return new Set(
+    Array.from(soldMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([id]) => id),
+  )
+}
+
 /** Lista todas as categorias ativas. */
 export async function listCategories(): Promise<AdminCategory[]> {
   const supabase = client()
@@ -118,18 +187,23 @@ export async function listCategories(): Promise<AdminCategory[]> {
   return data ?? []
 }
 
-/** Lista os produtos com imagem principal e tamanhos agregados das variações. */
+/** Lista os produtos com imagem principal, tamanhos, custo, margem e indicadores. */
 export async function listProducts(): Promise<AdminProductRow[]> {
   const supabase = client()
-  const { data, error } = await supabase
-    .from('products')
-    .select(
-      `id, name, brand, price, stock, status,
-       categories ( name ),
-       product_images ( image_path, sort_order ),
-       product_variants ( size, stock )`,
-    )
-    .order('created_at', { ascending: false })
+  const [{ data, error }, bestSellers] = await Promise.all([
+    supabase
+      .from('products')
+      .select(
+        `id, name, brand, price, pix_price, promo_price, stock, status,
+         low_stock_threshold,
+         categories ( name ),
+         product_images ( image_path, sort_order ),
+         product_variants ( size, stock ),
+         product_costs ( cost_price )`,
+      )
+      .order('created_at', { ascending: false }),
+    getBestSellerIds(5),
+  ])
   if (error) throw new Error(error.message)
 
   return (data ?? []).map((p: any) => {
@@ -148,14 +222,35 @@ export async function listProducts(): Promise<AdminProductRow[]> {
       (sum: number, v: any) => sum + (v.stock ?? 0),
       0,
     )
+    const stock = variants.length > 0 ? variantStock : p.stock ?? 0
+    const threshold = Number(p.low_stock_threshold) || 0
+
+    const price = Number(p.price) || 0
+    const pixPrice = p.pix_price != null ? Number(p.pix_price) : null
+    const promoPrice = p.promo_price != null ? Number(p.promo_price) : null
+    // product_costs é 1:1 (pode vir como objeto ou array dependendo do join).
+    const rawCost = Array.isArray(p.product_costs)
+      ? p.product_costs[0]?.cost_price
+      : p.product_costs?.cost_price
+    const cost = rawCost != null ? Number(rawCost) : 0
+    const effectivePrice = effectiveSalePrice(price, pixPrice, promoPrice)
+    const { margin, marginPercent } = computeMargin(effectivePrice, cost)
+
     return {
       id: p.id,
       name: p.name,
       image: images[0]?.image_path ?? '/placeholder.svg',
       category: p.categories?.name ?? '—',
       brand: p.brand ?? '—',
-      price: Number(p.price) || 0,
-      stock: variants.length > 0 ? variantStock : p.stock ?? 0,
+      price,
+      effectivePrice,
+      cost,
+      margin,
+      marginPercent,
+      stock,
+      lowStockThreshold: threshold,
+      lowStock: stock > 0 && stock <= threshold,
+      bestSeller: bestSellers.has(p.id),
       sizes,
       status: (p.status as ProductStatus) ?? 'ativo',
     }
@@ -169,9 +264,11 @@ export async function getProduct(id: string): Promise<ProductDetail> {
     .from('products')
     .select(
       `id, name, description, brand, color, price, pix_price, promo_price,
-       stock, status, sku, barcode, weight_kg, dimensions, category_id,
+       stock, low_stock_threshold, status, sku, barcode, weight_kg, dimensions,
+       category_id,
        product_images ( image_path, sort_order ),
-       product_variants ( size )`,
+       product_variants ( size ),
+       product_costs ( cost_price )`,
     )
     .eq('id', id)
     .single()
@@ -200,7 +297,14 @@ export async function getProduct(id: string): Promise<ProductDetail> {
     price: Number(p.price) || 0,
     pixPrice: p.pix_price != null ? Number(p.pix_price) : null,
     promoPrice: p.promo_price != null ? Number(p.promo_price) : null,
+    costPrice: (() => {
+      const raw = Array.isArray(p.product_costs)
+        ? p.product_costs[0]?.cost_price
+        : p.product_costs?.cost_price
+      return raw != null ? Number(raw) : 0
+    })(),
     stock: p.stock ?? 0,
+    lowStockThreshold: Number(p.low_stock_threshold) || 5,
     status: (p.status as ProductStatus) ?? 'ativo',
     sku: p.sku ?? '',
     barcode: p.barcode ?? '',
@@ -227,6 +331,10 @@ function buildProductRow(values: ProductFormValues) {
     pix_price: values.pixPrice,
     promo_price: values.promoPrice,
     stock: values.stock,
+    low_stock_threshold:
+      Number.isFinite(values.lowStockThreshold) && values.lowStockThreshold >= 0
+        ? Math.round(values.lowStockThreshold)
+        : 5,
     status: values.status,
     is_active: values.status !== 'inativo',
     sku: values.sku || null,
@@ -269,6 +377,24 @@ async function replaceImages(productId: string, urls: string[]) {
   if (error) throw new Error(error.message)
 }
 
+/**
+ * Grava o preço de custo do produto na tabela admin-only product_costs.
+ * O upsert garante 1 linha por produto; a leitura é bloqueada para não-admins
+ * pela RLS, então o custo nunca é exposto na loja pública.
+ */
+async function saveCost(productId: string, costPrice: number) {
+  const supabase = client()
+  const value =
+    Number.isFinite(costPrice) && costPrice > 0 ? Number(costPrice) : 0
+  const { error } = await supabase
+    .from('product_costs')
+    .upsert(
+      { product_id: productId, cost_price: value, updated_at: new Date().toISOString() },
+      { onConflict: 'product_id' },
+    )
+  if (error) throw new Error(`Falha ao salvar o custo: ${error.message}`)
+}
+
 /** Cria um novo produto com imagens e variações. */
 export async function createProduct(
   values: ProductFormValues,
@@ -286,6 +412,7 @@ export async function createProduct(
   const urls = await uploadPhotos(id, photos)
   await replaceImages(id, urls)
   await replaceVariants(id, values)
+  await saveCost(id, values.costPrice)
   return id
 }
 
@@ -305,6 +432,7 @@ export async function updateProduct(
   const urls = await uploadPhotos(id, photos)
   await replaceImages(id, urls)
   await replaceVariants(id, values)
+  await saveCost(id, values.costPrice)
 }
 
 /** Remove um produto (imagens e variações são removidas em cascata). */
@@ -405,7 +533,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       .limit(5),
     supabase
       .from('products')
-      .select('stock, product_variants ( stock )'),
+      .select('stock, low_stock_threshold, product_variants ( stock )'),
     supabase.from('order_items').select('product_name, quantity'),
   ])
 
@@ -425,7 +553,8 @@ export async function getDashboardData(): Promise<DashboardData> {
       variants.length > 0
         ? variants.reduce((s: number, v: any) => s + (v.stock ?? 0), 0)
         : p.stock ?? 0
-    if (total > 0 && total <= 5) lowStock++
+    const threshold = Number(p.low_stock_threshold) || 5
+    if (total > 0 && total <= threshold) lowStock++
   }
 
   // Mais vendidos a partir dos itens de pedidos reais.

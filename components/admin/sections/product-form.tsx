@@ -18,9 +18,12 @@ import {
   updateProduct,
   getProduct,
   listCategories,
+  effectiveSalePrice,
+  computeMargin,
   type AdminCategory,
   type ProductFormValues,
 } from '../products-service'
+import { formatBRL } from '@/lib/format'
 
 const emptyValues: ProductFormValues = {
   name: '',
@@ -32,7 +35,9 @@ const emptyValues: ProductFormValues = {
   price: 0,
   pixPrice: null,
   promoPrice: null,
+  costPrice: 0,
   stock: 0,
+  lowStockThreshold: 5,
   status: 'ativo',
   sku: '',
   barcode: '',
@@ -120,6 +125,20 @@ export function ProductForm({
     () => values.name.trim().length > 0 && values.price > 0 && !saving,
     [values.name, values.price, saving],
   )
+
+  // Margem calculada em tempo real a partir do preço efetivo (promo/pix) e do custo.
+  const marginInfo = useMemo(() => {
+    const salePrice = effectiveSalePrice(
+      values.price,
+      values.pixPrice,
+      values.promoPrice,
+    )
+    const { margin, marginPercent } = computeMargin(
+      salePrice,
+      values.costPrice || 0,
+    )
+    return { salePrice, margin, marginPercent }
+  }, [values.price, values.pixPrice, values.promoPrice, values.costPrice])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
