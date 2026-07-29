@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Loader2, Printer, X } from 'lucide-react'
 import { formatBRL } from '@/lib/format'
 import {
@@ -51,6 +52,12 @@ export function OrderReceiptModal({
   const [store, setStore] = useState<StoreSettings>(EMPTY_STORE_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [format, setFormat] = useState<ReceiptFormat>('a4')
+  const [mounted, setMounted] = useState(false)
+
+  // Só renderizamos o portal no cliente (evita erro de SSR).
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -69,42 +76,113 @@ export function OrderReceiptModal({
     }
   }, [])
 
+  // Garante que a impressão só dispare depois que a logo terminar de carregar,
+  // para que a imagem apareça na pré-visualização de impressão / PDF.
+  const handlePrint = () => {
+    const img = document.querySelector<HTMLImageElement>(
+      '#receipt-print-area img.receipt-logo',
+    )
+    if (img && !img.complete) {
+      const go = () => window.print()
+      img.addEventListener('load', go, { once: true })
+      img.addEventListener('error', go, { once: true })
+      return
+    }
+    // Aguarda um frame para o layout do formato atual estar aplicado.
+    requestAnimationFrame(() => window.print())
+  }
+
   const customerAddress = buildCustomerAddress(order)
   const deadline = exchangeDeadline(order.createdAt, store.exchangeDays)
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      {/* Estilos de impressão: oculta tudo, exibe só o comprovante. */}
+  if (!mounted) return null
+
+  return createPortal(
+    <div
+      id="receipt-modal-root"
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+    >
+      {/*
+        Estilos de impressão.
+        Estratégia: manter o comprovante no FLUXO NORMAL (sem position:absolute
+        nem visibility:hidden nos pais), ocultar somente o restante da página com
+        display:none e neutralizar as restrições de altura/overflow dos
+        contêineres do modal. Assim o comprovante inteiro imprime e pagina em
+        múltiplas folhas quando necessário.
+      */}
       <style>{`
         .receipt-logo {
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
         @media print {
-          body * { visibility: hidden !important; }
-          #receipt-print-area, #receipt-print-area * { visibility: visible !important; }
-          #receipt-print-area {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
+          html, body {
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            background: #fff !important;
+          }
+          /* Oculta tudo que não faz parte do modal do comprovante. */
+          body > *:not(#receipt-modal-root) { display: none !important; }
+
+          /* Neutraliza o wrapper fixo do modal. */
+          #receipt-modal-root {
+            position: static !important;
+            display: block !important;
+            inset: auto !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            background: #fff !important;
+            z-index: auto !important;
+          }
+          /* Cartão e área de rolagem: sem altura/overflow limitados. */
+          #receipt-modal-root .receipt-shell,
+          #receipt-modal-root .receipt-scroll {
+            position: static !important;
+            display: block !important;
+            width: auto !important;
+            max-width: none !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
             margin: 0 !important;
             padding: 0 !important;
+            border-radius: 0 !important;
             box-shadow: none !important;
+            background: #fff !important;
+          }
+          /* Elementos que não devem ser impressos (backdrop e barra de ações). */
+          #receipt-modal-root .no-print { display: none !important; }
+
+          /* O comprovante permanece no fluxo normal para paginar. */
+          #receipt-print-area {
+            position: static !important;
+            width: auto !important;
+            max-width: none !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            margin: 0 auto !important;
+            box-shadow: none !important;
+          }
+          /* Evita quebrar blocos pequenos no meio, sem impedir a paginação. */
+          #receipt-print-area header,
+          #receipt-print-area section,
+          #receipt-print-area tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           .receipt-logo {
             display: block !important;
             height: auto !important;
             object-fit: contain !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
-          .no-print { display: none !important; }
         }
         ${
           format === 'thermal'
-            ? '@media print { @page { size: 80mm auto; margin: 4mm; } .receipt-logo { width: 90px !important; } }'
-            : '@media print { @page { size: A4; margin: 14mm; } .receipt-logo { width: 140px !important; } }'
+            ? '@media print { @page { size: 80mm auto; margin: 3mm; } #receipt-print-area { padding: 0 !important; } .receipt-logo { width: 90px !important; } }'
+            : '@media print { @page { size: A4; margin: 12mm; } #receipt-print-area { padding: 0 !important; } .receipt-logo { width: 140px !important; } }'
         }
       `}</style>
 
@@ -115,7 +193,7 @@ export function OrderReceiptModal({
         onClick={onClose}
       />
 
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-background shadow-2xl sm:rounded-3xl">
+      <div className="receipt-shell relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-background shadow-2xl sm:rounded-3xl">
         {/* Barra de ações (não imprime) */}
         <div className="no-print flex items-center justify-between gap-3 border-b border-border p-4">
           <div className="flex items-center gap-2">
@@ -145,8 +223,9 @@ export function OrderReceiptModal({
             </div>
             <button
               type="button"
-              onClick={() => window.print()}
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground hover:bg-primary/90"
+              onClick={handlePrint}
+              disabled={loading}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-primary px-4 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Printer className="h-4 w-4" />
               Imprimir
@@ -163,7 +242,7 @@ export function OrderReceiptModal({
         </div>
 
         {/* Área de pré-visualização com rolagem */}
-        <div className="overflow-y-auto bg-muted/40 p-4 sm:p-6">
+        <div className="receipt-scroll overflow-y-auto bg-muted/40 p-4 sm:p-6">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -189,7 +268,8 @@ export function OrderReceiptModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
