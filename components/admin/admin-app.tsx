@@ -5,6 +5,7 @@ import Image from 'next/image'
 import {
   LayoutDashboard,
   ShoppingBag,
+  Wallet,
   Package,
   Tags,
   Users,
@@ -27,6 +28,7 @@ import { AdminAuthProvider, useAdminAuth } from './auth/auth-context'
 import { Dashboard } from './sections/dashboard'
 import { Products } from './sections/products'
 import { Orders } from './sections/orders'
+import { Cash } from './sections/cash'
 import { Categories } from './sections/categories'
 import { Customers } from './sections/customers'
 import { Coupons } from './sections/coupons'
@@ -38,6 +40,7 @@ import { AdminAccount } from './sections/account'
 export type SectionId =
   | 'dashboard'
   | 'pedidos'
+  | 'caixa'
   | 'produtos'
   | 'categorias'
   | 'clientes'
@@ -50,6 +53,7 @@ export type SectionId =
 const nav: { id: SectionId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'pedidos', label: 'Pedidos', icon: ShoppingBag },
+  { id: 'caixa', label: 'Caixa', icon: Wallet },
   { id: 'produtos', label: 'Produtos', icon: Package },
   { id: 'categorias', label: 'Categorias', icon: Tags },
   { id: 'clientes', label: 'Clientes', icon: Users },
@@ -63,6 +67,7 @@ const nav: { id: SectionId; label: string; icon: typeof LayoutDashboard }[] = [
 const titles: Record<SectionId, string> = {
   dashboard: 'Dashboard',
   pedidos: 'Pedidos',
+  caixa: 'Controle de Caixa',
   produtos: 'Produtos',
   categorias: 'Categorias',
   clientes: 'Clientes',
@@ -240,6 +245,7 @@ function AdminAppInner() {
         <main className="p-4 pb-24 lg:p-8 lg:pb-8">
           {active === 'dashboard' && <Dashboard onNavigate={go} />}
           {active === 'pedidos' && <Orders />}
+          {active === 'caixa' && <Cash />}
           {active === 'produtos' && <Products />}
           {active === 'categorias' && <Categories />}
           {active === 'clientes' && <Customers />}
