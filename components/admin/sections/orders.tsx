@@ -12,8 +12,10 @@ import {
   AlertCircle,
   Check,
   Trash2,
+  Printer,
 } from 'lucide-react'
 import { formatBRL } from '@/lib/format'
+import { OrderReceiptModal } from './order-receipt'
 import {
   listOrders,
   updateOrderStatus,
@@ -271,6 +273,7 @@ function OrderDetail({
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showReceipt, setShowReceipt] = useState(false)
 
   async function handleUpdate() {
     if (saving || status === order.status) return
@@ -441,6 +444,14 @@ function OrderDetail({
               </>
             )}
           </button>
+          <button
+            type="button"
+            onClick={() => setShowReceipt(true)}
+            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full border border-border text-sm font-bold text-foreground hover:bg-muted"
+          >
+            <Printer className="h-4 w-4" />
+            Imprimir comprovante
+          </button>
         </div>
 
         {/* Excluir pedido */}
@@ -497,6 +508,10 @@ function OrderDetail({
           )}
         </div>
       </div>
+
+      {showReceipt && (
+        <OrderReceiptModal order={order} onClose={() => setShowReceipt(false)} />
+      )}
     </div>
   )
 }

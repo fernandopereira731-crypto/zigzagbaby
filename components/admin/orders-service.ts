@@ -19,6 +19,16 @@ export type AdminOrderItem = {
   quantity: number
 }
 
+export type AdminOrderAddress = {
+  cep: string | null
+  street: string | null
+  number: string | null
+  complement: string | null
+  district: string | null
+  city: string | null
+  state: string | null
+}
+
 export type AdminOrderRow = {
   id: string
   orderNumber: string
@@ -26,6 +36,7 @@ export type AdminOrderRow = {
   email: string | null
   phone: string | null
   city: string
+  address: AdminOrderAddress | null
   status: string
   paymentStatus: string
   paymentMethod: string | null
@@ -146,6 +157,7 @@ export async function listOrders(): Promise<AdminOrderRow[]> {
     const city = address.city
       ? `${address.city}${address.state ? ` - ${address.state}` : ''}`
       : '—'
+    const hasAddress = Object.keys(address).length > 0
     return {
       id: o.id,
       orderNumber: o.order_number,
@@ -153,6 +165,17 @@ export async function listOrders(): Promise<AdminOrderRow[]> {
       email: o.customer_email ?? null,
       phone: o.customer_phone ?? null,
       city,
+      address: hasAddress
+        ? {
+            cep: address.cep ?? null,
+            street: address.street ?? null,
+            number: address.number ?? null,
+            complement: address.complement ?? null,
+            district: address.district ?? null,
+            city: address.city ?? null,
+            state: address.state ?? null,
+          }
+        : null,
       status: o.status,
       paymentStatus: o.payment_status,
       paymentMethod: o.payment_method ?? null,
