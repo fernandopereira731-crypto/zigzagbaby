@@ -337,6 +337,42 @@ export function ProductForm({
                 onValueChange={(n) => set('promoPrice', n)}
               />
             </Field>
+            <Field
+              label="Preço de custo (R$)"
+              hint="Valor pago pela peça. Uso interno — nunca aparece na loja."
+            >
+              <MoneyInput
+                placeholder="0,00"
+                value={values.costPrice}
+                onValueChange={(n) => set('costPrice', n ?? 0)}
+              />
+            </Field>
+
+            {/* Resumo de margem calculado em tempo real */}
+            <div className="rounded-xl border border-input bg-muted/40 p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Margem de lucro</span>
+                <span
+                  className={`font-bold ${
+                    marginInfo.margin >= 0 ? 'text-emerald-600' : 'text-destructive'
+                  }`}
+                >
+                  {formatBRL(marginInfo.margin)}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  Sobre {formatBRL(marginInfo.salePrice)}
+                </span>
+                <span
+                  className={`font-semibold ${
+                    marginInfo.margin >= 0 ? 'text-emerald-600' : 'text-destructive'
+                  }`}
+                >
+                  {marginInfo.marginPercent.toFixed(1)}%
+                </span>
+              </div>
+            </div>
           </Panel>
 
           <Panel className="space-y-4 p-5">
@@ -349,6 +385,23 @@ export function ProductForm({
                 placeholder="0"
                 value={values.stock || ''}
                 onChange={(e) => set('stock', Math.max(0, Math.round(toNumber(e.target.value))))}
+              />
+            </Field>
+            <Field
+              label="Alerta de estoque baixo"
+              hint="Avisa quando o estoque ficar igual ou abaixo deste número."
+            >
+              <TextInput
+                type="number"
+                min={0}
+                placeholder="5"
+                value={values.lowStockThreshold || ''}
+                onChange={(e) =>
+                  set(
+                    'lowStockThreshold',
+                    Math.max(0, Math.round(toNumber(e.target.value))),
+                  )
+                }
               />
             </Field>
             <Field label="Status">

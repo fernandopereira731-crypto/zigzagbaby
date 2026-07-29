@@ -11,7 +11,14 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  Download,
+  PackageX,
+  PackageMinus,
+  Percent,
+  Wallet,
+  Flame,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { formatBRL } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { brands, allSizes, productStatusLabels } from '../admin-data'
@@ -84,6 +91,43 @@ export function Products() {
     })
   }, [items, query, category, brand, size, status])
 
+  // Indicadores (KPIs) calculados sobre a lista completa de produtos.
+  const kpis = useMemo(() => {
+    const total = items.length
+    const outOfStock = items.filter((p) => p.stock === 0).length
+    const lowStock = items.filter((p) => p.lowStock).length
+    const withCost = items.filter((p) => p.cost > 0)
+    const avgMarginPercent = withCost.length
+      ? withCost.reduce((s, p) => s + p.marginPercent, 0) / withCost.length
+      : 0
+    const stockCostValue = items.reduce((s, p) => s + p.cost * p.stock, 0)
+    return { total, outOfStock, lowStock, avgMarginPercent, stockCostValue }
+  }, [items])
+
+  // Exporta a lista filtrada para um arquivo Excel (.xlsx) real.
+  function handleExportExcel() {
+    const rows = filtered.map((p) => ({
+      Produto: p.name,
+      Categoria: p.category,
+      Marca: p.brand,
+      'Preço (R$)': p.price,
+      'Preço efetivo (R$)': p.effectivePrice,
+      'Custo (R$)': p.cost,
+      'Margem (R$)': p.margin,
+      'Margem (%)': Number(p.marginPercent.toFixed(1)),
+      Estoque: p.stock,
+      'Alerta estoque': p.lowStockThreshold,
+      Tamanhos: p.sizes.join(', '),
+      'Mais vendido': p.bestSeller ? 'Sim' : 'Não',
+      Status: productStatusLabels[p.status].label,
+    }))
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos')
+    const today = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(workbook, `produtos-${today}.xlsx`)
+  }
+
   function openNew() {
     setEditingId(null)
     setView('form')
@@ -136,6 +180,37 @@ export function Products() {
 
   return (
     <div className="space-y-5">
+      {/* Indicadores */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <KpiCard
+          icon={<Package className="h-4 w-4" />}
+          label="Produtos"
+          value={String(kpis.total)}
+        />
+        <KpiCard
+          icon={<PackageX className="h-4 w-4" />}
+          label="Sem estoque"
+          value={String(kpis.outOfStock)}
+          tone={kpis.outOfStock > 0 ? 'danger' : 'default'}
+        />
+        <KpiCard
+          icon={<PackageMinus className="h-4 w-4" />}
+          label="Estoque baixo"
+          value={String(kpis.lowStock)}
+          tone={kpis.lowStock > 0 ? 'warning' : 'default'}
+        />
+        <KpiCard
+          icon={<Percent className="h-4 w-4" />}
+          label="Margem média"
+          value={`${kpis.avgMarginPercent.toFixed(1)}%`}
+        />
+        <KpiCard
+          icon={<Wallet className="h-4 w-4" />}
+          label="Custo em estoque"
+          value={formatBRL(kpis.stockCostValue)}
+        />
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -144,6 +219,15 @@ export function Products() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={filtered.length === 0}
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-input bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" />
+            Exportar Excel
+          </button>
           <PrimaryButton className="shrink-0" onClick={openNew}>
             <Plus className="h-4 w-4" />
             Novo produto
@@ -212,6 +296,8 @@ export function Products() {
                   <th className="px-4 py-3 font-semibold">Produto</th>
                   <th className="px-4 py-3 font-semibold">Categoria</th>
                   <th className="px-4 py-3 font-semibold">Preço</th>
+                  <th className="px-4 py-3 font-semibold">Custo</th>
+                  <th className="px-4 py-3 font-semibold">Margem</th>
                   <th className="px-4 py-3 font-semibold">Estoque</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 text-right font-semibold">Ações</th>
@@ -232,9 +318,12 @@ export function Products() {
                           />
                         </div>
                         <div>
-                          <p className="font-semibold text-foreground">
-                            {p.name}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-foreground">
+                              {p.name}
+                            </p>
+                            {p.bestSeller && <BestSellerBadge />}
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {p.brand}
                           </p>
@@ -247,8 +336,21 @@ export function Products() {
                     <td className="px-4 py-3 font-bold text-foreground">
                       {formatBRL(p.price)}
                     </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {p.cost > 0 ? formatBRL(p.cost) : '—'}
+                    </td>
                     <td className="px-4 py-3">
-                      <StockBadge stock={p.stock} />
+                      <MarginCell
+                        cost={p.cost}
+                        margin={p.margin}
+                        marginPercent={p.marginPercent}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <StockBadge
+                        stock={p.stock}
+                        threshold={p.lowStockThreshold}
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge
@@ -308,9 +410,12 @@ export function Products() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="truncate font-semibold text-foreground">
-                        {p.name}
-                      </p>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <p className="truncate font-semibold text-foreground">
+                          {p.name}
+                        </p>
+                        {p.bestSeller && <BestSellerBadge />}
+                      </div>
                       <StatusBadge
                         label={productStatusLabels[p.status].label}
                         className={productStatusLabels[p.status].className}
@@ -323,8 +428,24 @@ export function Products() {
                       <span className="font-bold text-foreground">
                         {formatBRL(p.price)}
                       </span>
-                      <StockBadge stock={p.stock} />
+                      <StockBadge stock={p.stock} threshold={p.lowStockThreshold} />
                     </div>
+                    {p.cost > 0 && (
+                      <div className="mt-1 flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          Custo {formatBRL(p.cost)}
+                        </span>
+                        <span
+                          className={
+                            p.margin >= 0
+                              ? 'font-semibold text-emerald-600'
+                              : 'font-semibold text-destructive'
+                          }
+                        >
+                          Margem {formatBRL(p.margin)} ({p.marginPercent.toFixed(0)}%)
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
@@ -368,25 +489,112 @@ export function Products() {
   )
 }
 
-function StockBadge({ stock }: { stock: number }) {
+function StockBadge({
+  stock,
+  threshold = 5,
+}: {
+  stock: number
+  threshold?: number
+}) {
+  const isLow = stock > 0 && stock <= threshold
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1 text-sm font-semibold',
         stock === 0
           ? 'text-secondary-foreground'
-          : stock <= 5
+          : isLow
             ? 'text-accent-foreground'
             : 'text-foreground',
       )}
     >
       {stock} un.
-      {stock > 0 && stock <= 5 && (
+      {isLow && (
         <span className="rounded-full bg-accent/25 px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground">
           baixo
         </span>
       )}
     </span>
+  )
+}
+
+function MarginCell({
+  cost,
+  margin,
+  marginPercent,
+}: {
+  cost: number
+  margin: number
+  marginPercent: number
+}) {
+  if (cost <= 0) {
+    return <span className="text-xs text-muted-foreground">Sem custo</span>
+  }
+  const positive = margin >= 0
+  return (
+    <div className="flex flex-col">
+      <span
+        className={cn(
+          'text-sm font-bold',
+          positive ? 'text-emerald-600' : 'text-destructive',
+        )}
+      >
+        {formatBRL(margin)}
+      </span>
+      <span
+        className={cn(
+          'text-xs font-medium',
+          positive ? 'text-emerald-600/80' : 'text-destructive/80',
+        )}
+      >
+        {marginPercent.toFixed(1)}%
+      </span>
+    </div>
+  )
+}
+
+function BestSellerBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+      <Flame className="h-3 w-3" />
+      Mais vendido
+    </span>
+  )
+}
+
+function KpiCard({
+  icon,
+  label,
+  value,
+  tone = 'default',
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  tone?: 'default' | 'warning' | 'danger'
+}) {
+  const toneClasses = {
+    default: 'text-primary',
+    warning: 'text-accent-foreground',
+    danger: 'text-destructive',
+  }[tone]
+  return (
+    <Panel className="flex items-center gap-3 p-4">
+      <span
+        className={cn(
+          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted',
+          toneClasses,
+        )}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-xs font-medium text-muted-foreground">
+          {label}
+        </p>
+        <p className="text-lg font-bold text-foreground">{value}</p>
+      </div>
+    </Panel>
   )
 }
 
