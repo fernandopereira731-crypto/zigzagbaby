@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   Check,
@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   Star,
   Truck,
+  X,
   Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -59,12 +60,16 @@ export function ProductInfo({
   const [color, setColor] = useState(colors[0])
   const [size, setSize] = useState<string | null>(null)
   const favorite = isFavorite(product.id)
-  const [added, setAdded] = useState(false)
+  // Modal exibido após adicionar o item ao carrinho.
+  const [addedModalOpen, setAddedModalOpen] = useState(false)
 
   const whatsappHref = whatsappUrl(
     `Olá! Tenho interesse no produto "${product.name}".`,
   )
 
+  // Adiciona o item ao carrinho (sem criar pedido nem tocar no pagamento)
+  // e abre o modal de decisão. Usado tanto pelo "Comprar agora" quanto pelo
+  // "Adicionar ao carrinho".
   const handleAddToCart = () => {
     addToCart({
       id: product.id,
@@ -75,9 +80,23 @@ export function ProductInfo({
       color,
       size: size ?? product.sizes[0] ?? 'Único',
     })
-    setAdded(true)
-    window.setTimeout(() => setAdded(false), 1500)
+    setAddedModalOpen(true)
   }
+
+  // Fecha o modal com ESC e trava o scroll do body enquanto aberto.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setAddedModalOpen(false)
+    }
+    if (addedModalOpen) {
+      document.addEventListener('keydown', onKey)
+      document.body.style.overflow = 'hidden'
+    }
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [addedModalOpen])
 
   const selectedVariant = product.variants.find((v) => v.size === size)
   const lowStock =
@@ -255,27 +274,22 @@ export function ProductInfo({
 
       {/* Buttons */}
       <div className="mt-6 flex flex-col gap-3">
-        <Link
-          href="/carrinho"
+        <button
+          type="button"
           onClick={handleAddToCart}
           className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-primary text-base font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-transform hover:scale-[1.02] active:scale-[0.98]"
         >
           <Zap className="h-5 w-5" aria-hidden="true" />
           Comprar agora
-        </Link>
+        </button>
         <div className="flex gap-3">
           <button
             type="button"
             onClick={handleAddToCart}
-            className={cn(
-              'inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full border-2 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]',
-              added
-                ? 'border-whatsapp bg-whatsapp/10 text-whatsapp'
-                : 'border-primary text-primary hover:bg-primary/5',
-            )}
+            className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full border-2 border-primary text-sm font-bold text-primary transition-all hover:scale-[1.02] hover:bg-primary/5 active:scale-[0.98]"
           >
             <ShoppingBag className="h-5 w-5" aria-hidden="true" />
-            {added ? 'Adicionado!' : 'Adicionar ao carrinho'}
+            Adicionar ao carrinho
           </button>
           <button
             type="button"
@@ -327,6 +341,66 @@ export function ProductInfo({
           <span className="text-sm text-foreground">Troca fácil em até 30 dias</span>
         </li>
       </ul>
+
+      {/* Modal pós-adição ao carrinho */}
+      {addedModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="added-modal-title"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          onClick={() => setAddedModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="zzb-animate-fade-up w-full max-w-md rounded-t-3xl bg-card p-6 shadow-2xl sm:rounded-3xl"
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-whatsapp/10 text-whatsapp">
+                  <Check className="h-6 w-6" aria-hidden="true" />
+                </span>
+                <h2
+                  id="added-modal-title"
+                  className="text-balance font-serif text-lg font-semibold text-foreground"
+                >
+                  Produto adicionado ao carrinho
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddedModalOpen(false)}
+                aria-label="Fechar"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:bg-muted"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              O que você deseja fazer agora?
+            </p>
+
+            <div className="mt-5 flex flex-col gap-3">
+              <Link
+                href="/carrinho"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Zap className="h-5 w-5" aria-hidden="true" />
+                Finalizar compra
+              </Link>
+              <button
+                type="button"
+                onClick={() => setAddedModalOpen(false)}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border-2 border-primary text-sm font-bold text-primary transition-all hover:scale-[1.02] hover:bg-primary/5 active:scale-[0.98]"
+              >
+                <ShoppingBag className="h-5 w-5" aria-hidden="true" />
+                Continuar comprando
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

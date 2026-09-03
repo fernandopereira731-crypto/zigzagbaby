@@ -13,6 +13,7 @@ import {
   QrCode,
   CreditCard,
   Banknote,
+  Wallet,
   Gift,
   MessageSquare,
   Check,
@@ -91,6 +92,12 @@ const paymentOptions = [
     icon: CreditCard,
     title: 'Cartão de crédito',
     desc: 'Em até 6x sem juros',
+  },
+  {
+    id: 'mercadopago',
+    icon: Wallet,
+    title: 'Cartão/PIX via Mercado Pago',
+    desc: 'Pagamento online seguro pelo Checkout Pro',
   },
   {
     id: 'cash',
@@ -308,8 +315,56 @@ export function CheckoutClient() {
         notes: value('notes') || undefined,
       })
 
+      // Itens reais do carrinho para exibição no Checkout Pro (montados antes
+      // de limpar o carrinho). O valor cobrado é reconciliado no servidor com
+      // o total autoritativo do pedido.
+      const mpItems = cartItems.map((item) => ({
+        title: item.product.name,
+        quantity: item.quantity,
+        unit_price: item.product.price,
+      }))
+
       // Limpa o carrinho após o pedido ser gravado com sucesso.
       cartItems.forEach((item) => removeFromCart(item.product.id))
+
+      // Pagamento online via Mercado Pago Checkout Pro: gera a preferência no
+      // servidor e redireciona. As demais formas mantêm o fluxo atual.
+      if (payment === 'mercadopago') {
+        const response = await fetch('/api/checkout/mercadopago', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: result.id,
+            orderNumber: result.order_number,
+            total: result.total,
+            discount: result.discount,
+            shipping: result.shipping,
+            giftFee: result.gift_fee,
+            items: mpItems,
+            payer: {
+              name: customer.name,
+              email: customer.email,
+              phone: customer.phone,
+            },
+          }),
+        })
+
+        const payload = await response.json().catch(() => null)
+        if (response.ok && payload?.init_point) {
+          window.location.href = payload.init_point as string
+          return
+        }
+
+        // Falha ao iniciar o pagamento: o pedido já existe, então mostramos a
+        // confirmação (evita pedido duplicado) com um aviso.
+        setConfirmed(result)
+        setError(
+          'Seu pedido foi registrado, mas não conseguimos abrir o pagamento online. Entraremos em contato pelo WhatsApp para concluir.',
+        )
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+        return
+      }
+
       setConfirmed(result)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
@@ -545,12 +600,16 @@ export function CheckoutClient() {
           {submitting ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-              Enviando pedido...
+              {payment === 'mercadopago'
+                ? 'Abrindo pagamento...'
+                : 'Enviando pedido...'}
             </>
           ) : (
             <>
               <Zap className="h-5 w-5" aria-hidden="true" />
-              Finalizar pedido
+              {payment === 'mercadopago'
+                ? 'Ir para o pagamento'
+                : 'Finalizar pedido'}
             </>
           )}
         </button>
