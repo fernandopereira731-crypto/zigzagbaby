@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import {
   Check,
@@ -62,6 +63,10 @@ export function ProductInfo({
   const favorite = isFavorite(product.id)
   // Modal exibido após adicionar o item ao carrinho.
   const [addedModalOpen, setAddedModalOpen] = useState(false)
+  // Portal só é renderizado no cliente (evita mismatch de hidratação).
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
 
   const whatsappHref = whatsappUrl(
     `Olá! Tenho interesse no produto "${product.name}".`,
@@ -342,46 +347,53 @@ export function ProductInfo({
         </li>
       </ul>
 
-      {/* Modal pós-adição ao carrinho */}
-      {addedModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="added-modal-title"
-          className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-          onClick={() => setAddedModalOpen(false)}
-        >
+      {/* Modal pós-adição ao carrinho (renderizado via portal no body para
+          escapar de ancestrais com transform, que quebrariam o position:fixed) */}
+      {mounted &&
+        addedModalOpen &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="added-modal-title"
+            className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-foreground/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+            onClick={() => setAddedModalOpen(false)}
+          >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="zzb-animate-fade-up w-full max-w-md rounded-t-3xl bg-card p-6 shadow-2xl sm:rounded-3xl"
+            className="zzb-animate-fade-up flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-card shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-3xl"
           >
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-whatsapp/10 text-whatsapp">
-                  <Check className="h-6 w-6" aria-hidden="true" />
-                </span>
-                <h2
-                  id="added-modal-title"
-                  className="text-balance font-serif text-lg font-semibold text-foreground"
+            {/* Área rolável: cabeçalho e mensagem */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-whatsapp/10 text-whatsapp">
+                    <Check className="h-6 w-6" aria-hidden="true" />
+                  </span>
+                  <h2
+                    id="added-modal-title"
+                    className="text-balance font-serif text-lg font-semibold text-foreground"
+                  >
+                    Produto adicionado ao carrinho
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddedModalOpen(false)}
+                  aria-label="Fechar"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:bg-muted"
                 >
-                  Produto adicionado ao carrinho
-                </h2>
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setAddedModalOpen(false)}
-                aria-label="Fechar"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:bg-muted"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
+
+              <p className="mt-4 text-sm text-muted-foreground">
+                O que você deseja fazer agora?
+              </p>
             </div>
 
-            <p className="text-sm text-muted-foreground">
-              O que você deseja fazer agora?
-            </p>
-
-            <div className="mt-5 flex flex-col gap-3">
+            {/* Rodapé fixo: botões sempre visíveis */}
+            <div className="flex shrink-0 flex-col gap-3 border-t border-border bg-card p-6">
               <Link
                 href="/carrinho"
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
@@ -399,8 +411,9 @@ export function ProductInfo({
               </button>
             </div>
           </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }
