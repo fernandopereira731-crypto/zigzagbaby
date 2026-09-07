@@ -224,7 +224,7 @@ export function AuthView({ onAuthenticated }: { onAuthenticated?: () => void }) 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email.trim(),
       {
-        redirectTo: authRedirectUrl('/conta/atualizar-senha'),
+        redirectTo: authRedirectUrl('/reset-password'),
       },
     )
     if (resetError) {
