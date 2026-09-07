@@ -212,7 +212,7 @@ export function ResetPasswordForm() {
           disabled={loading}
           className="mt-1 inline-flex h-12 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground transition-transform hover:bg-primary/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? 'Salvando...' : 'Salvar nova senha'}
+          {loading ? 'Salvando...' : 'Redefinir senha'}
         </button>
       </form>
     </div>
