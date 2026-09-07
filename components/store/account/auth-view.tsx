@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { authRedirectUrl } from '@/lib/supabase/auth-redirect'
 import { WhatsAppIcon } from '@/components/store/whatsapp-icon'
 import { WHATSAPP_URL } from './account-data'
 import { ChildrenFields, type ChildDraft } from './children-fields'
@@ -128,7 +129,7 @@ export function AuthView({ onAuthenticated }: { onAuthenticated?: () => void }) 
         type: 'signup',
         email: resendEmail,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/conta`,
+          emailRedirectTo: authRedirectUrl('/conta'),
         },
       })
       if (resendError) {
@@ -170,7 +171,7 @@ export function AuthView({ onAuthenticated }: { onAuthenticated?: () => void }) 
       email: email.trim(),
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/conta`,
+        emailRedirectTo: authRedirectUrl('/conta'),
         data: {
           full_name: trimmed,
           first_name: firstName,
@@ -223,7 +224,7 @@ export function AuthView({ onAuthenticated }: { onAuthenticated?: () => void }) 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email.trim(),
       {
-        redirectTo: `${window.location.origin}/auth/callback?next=/conta/atualizar-senha`,
+        redirectTo: authRedirectUrl('/conta/atualizar-senha'),
       },
     )
     if (resetError) {
