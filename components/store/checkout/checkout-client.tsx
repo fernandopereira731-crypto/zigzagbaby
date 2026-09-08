@@ -14,7 +14,6 @@ import {
   CreditCard,
   Banknote,
   Wallet,
-  Gift,
   MessageSquare,
   Check,
   Lock,
@@ -52,7 +51,6 @@ type Prefill = {
 const APPLIED_COUPON = 'ZIGZAG10'
 const COUPON_RATE = 0.1
 const PIX_DISCOUNT = 0.05
-const GIFT_FEE = 9.9
 
 const deliveryOptions = [
   {
@@ -76,7 +74,8 @@ const deliveryOptions = [
     icon: CalendarClock,
     title: 'Entrega agendada',
     desc: 'Escolha o melhor dia para receber',
-    price: 12.9,
+    price: 0,
+    badge: 'Grátis',
   },
 ] as const
 
@@ -182,7 +181,6 @@ export function CheckoutClient() {
 
   const [delivery, setDelivery] = useState<string>('today')
   const [payment, setPayment] = useState<string>('pix')
-  const [gift, setGift] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
@@ -239,8 +237,7 @@ export function CheckoutClient() {
 
   const discount = subtotal * COUPON_RATE
   const deliveryFee = deliveryOptions.find((o) => o.id === delivery)?.price ?? 0
-  const giftFee = gift ? GIFT_FEE : 0
-  const total = subtotal - discount + deliveryFee + giftFee
+  const total = subtotal - discount + deliveryFee
   const pixTotal = total * (1 - PIX_DISCOUNT)
   const isPix = payment === 'pix'
   const finalTotal = isPix ? pixTotal : total
@@ -311,7 +308,7 @@ export function CheckoutClient() {
         })),
         paymentMethod: payment,
         deliveryMethod: delivery,
-        giftWrap: gift,
+        giftWrap: false,
         notes: value('notes') || undefined,
       })
 
@@ -549,14 +546,6 @@ export function CheckoutClient() {
             )}
           </dd>
         </div>
-        {gift && (
-          <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground">Embalagem de presente</dt>
-            <dd className="font-semibold text-foreground">
-              {formatBRL(giftFee)}
-            </dd>
-          </div>
-        )}
       </dl>
 
       <hr className="my-4 border-border" />
@@ -911,57 +900,16 @@ export function CheckoutClient() {
             </div>
           </SectionCard>
 
-          <SectionCard step={5} icon={Gift} title="Toque final">
-            <label
-              className={cn(
-                'flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition-colors',
-                gift
-                  ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                  : 'border-border hover:border-primary/40',
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={gift}
-                onChange={(e) => setGift(e.target.checked)}
-                className="sr-only"
-              />
-              <span
-                className={cn(
-                  'flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2',
-                  gift
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border',
-                )}
-              >
-                {gift && <Check className="h-4 w-4" aria-hidden="true" />}
-              </span>
-              <span className="flex-1">
-                <span className="block text-sm font-bold text-foreground">
-                  Embalar para presente
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  Embrulho especial com cartão personalizado
-                </span>
-              </span>
-              <span className="text-sm font-bold text-foreground">
-                + {formatBRL(GIFT_FEE)}
-              </span>
-            </label>
-
-            <div className="mt-4 flex flex-col gap-1.5">
-              <label
-                htmlFor="notes"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-foreground"
-              >
-                <MessageSquare className="h-4 w-4 text-primary" aria-hidden="true" />
+          <SectionCard step={5} icon={MessageSquare} title="Observações do pedido">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="notes" className="sr-only">
                 Observações do pedido
               </label>
               <textarea
                 id="notes"
                 name="notes"
                 rows={3}
-                placeholder="Ex.: escrever no cartão, ponto de referência para entrega..."
+                placeholder="Ponto de referência para entrega"
                 className="w-full resize-none rounded-xl border border-border bg-background p-3.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </div>
@@ -978,7 +926,7 @@ export function CheckoutClient() {
               {
                 icon: RefreshCw,
                 title: 'Troca fácil',
-                desc: 'Até 30 dias para trocar',
+                desc: 'Até 10 dias para trocar',
               },
               {
                 icon: Truck,

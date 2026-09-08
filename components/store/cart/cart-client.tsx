@@ -37,8 +37,6 @@ type DisplayItem = {
   quantity: number
 }
 
-const FREE_SHIPPING_THRESHOLD = 199.9
-const SHIPPING_FEE = 19.9
 const PIX_DISCOUNT = 0.05
 
 const WHATSAPP_URL = whatsappUrl(
@@ -115,20 +113,9 @@ export function CartClient() {
       ? calcCouponDiscount(appliedCouponData, subtotal)
       : 0
   const afterDiscount = subtotal - discount
-  const shipping =
-    items.length === 0 || afterDiscount >= FREE_SHIPPING_THRESHOLD
-      ? 0
-      : SHIPPING_FEE
+  const shipping = 0
   const total = afterDiscount + shipping
   const pixTotal = total * (1 - PIX_DISCOUNT)
-  const missingForFreeShipping = Math.max(
-    0,
-    FREE_SHIPPING_THRESHOLD - afterDiscount,
-  )
-  const freeShippingProgress = Math.min(
-    100,
-    (afterDiscount / FREE_SHIPPING_THRESHOLD) * 100,
-  )
 
   if (!ready) {
     return (
@@ -182,30 +169,10 @@ export function CartClient() {
         </p>
       </div>
 
-      {/* Free shipping progress */}
-      <div className="mt-6 rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Truck className="h-4 w-4 text-primary" aria-hidden="true" />
-          {missingForFreeShipping > 0 ? (
-            <span>
-              Faltam{' '}
-              <span className="text-primary">
-                {formatBRL(missingForFreeShipping)}
-              </span>{' '}
-              para o frete grátis!
-            </span>
-          ) : (
-            <span className="text-primary">
-              Você ganhou frete grátis nesta compra!
-            </span>
-          )}
-        </div>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
-            style={{ width: `${freeShippingProgress}%` }}
-          />
-        </div>
+      {/* Frete grátis em todas as entregas */}
+      <div className="mt-6 flex items-center gap-2 rounded-2xl border border-border bg-card p-4 text-sm font-semibold text-foreground">
+        <Truck className="h-4 w-4 text-primary" aria-hidden="true" />
+        <span className="text-primary">Frete grátis em todas as entregas!</span>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
