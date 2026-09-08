@@ -24,6 +24,8 @@ import {
   ShoppingBag,
   PartyPopper,
   AlertCircle,
+  Tag,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatBRL } from '@/lib/format'
@@ -31,6 +33,11 @@ import { WhatsAppIcon } from '../whatsapp-icon'
 import { whatsappUrl } from '@/lib/site'
 import { useStore } from '../store-context'
 import { createOrder, type CreateOrderResult } from './checkout-service'
+import {
+  validateCoupon,
+  calcCouponDiscount,
+  type Coupon,
+} from '@/components/admin/coupons-service'
 import { fetchProfile, fetchAddresses } from '../account/account-service'
 
 type Prefill = {
@@ -46,10 +53,6 @@ type Prefill = {
   city: string
   state: string
 }
-
-  const APPLIED_COUPON = 'ZIGZAG10'
-  const COUPON_RATE = 0.1
-
 
 const deliveryOptions = [
   {
@@ -176,6 +179,13 @@ export function CheckoutClient() {
   const [payment, setPayment] = useState<string>('mercadopago')
   const [summaryOpen, setSummaryOpen] = useState(false)
 
+  // Cupom: começa sempre vazio. Nenhum desconto é aplicado sem o cliente
+  // digitar o código e clicar em "Aplicar".
+  const [couponInput, setCouponInput] = useState('')
+  const [appliedCouponData, setAppliedCouponData] = useState<Coupon | null>(null)
+  const [couponError, setCouponError] = useState('')
+  const [applyingCoupon, setApplyingCoupon] = useState(false)
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState<CreateOrderResult | null>(null)
@@ -228,10 +238,42 @@ export function CheckoutClient() {
     [cartItems],
   )
 
-  const discount = subtotal * COUPON_RATE
+  const appliedCoupon = appliedCouponData?.code ?? null
+  const discount =
+    appliedCouponData && subtotal >= appliedCouponData.minOrder
+      ? calcCouponDiscount(appliedCouponData, subtotal)
+      : 0
   const deliveryFee = deliveryOptions.find((o) => o.id === delivery)?.price ?? 0
   const total = subtotal - discount + deliveryFee
   const finalTotal = total
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase()
+    if (!code || applyingCoupon) return
+    setApplyingCoupon(true)
+    setCouponError('')
+    try {
+      const result = await validateCoupon(code, subtotal)
+      if (result.valid && result.coupon) {
+        setAppliedCouponData(result.coupon)
+        setCouponError('')
+      } else {
+        setAppliedCouponData(null)
+        setCouponError(result.message)
+      }
+    } catch {
+      setAppliedCouponData(null)
+      setCouponError('Não foi possível validar o cupom. Tente novamente.')
+    } finally {
+      setApplyingCoupon(false)
+    }
+  }
+
+  const removeCoupon = () => {
+    setAppliedCouponData(null)
+    setCouponInput('')
+    setCouponError('')
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -301,6 +343,7 @@ export function CheckoutClient() {
         deliveryMethod: delivery,
         giftWrap: false,
         notes: value('notes') || undefined,
+        couponCode: appliedCoupon ?? undefined,
       })
 
       // Itens reais do carrinho para exibição no Checkout Pro (montados antes
@@ -506,15 +549,65 @@ export function CheckoutClient() {
 
       <hr className="my-4 border-border" />
 
-      <div className="flex items-center justify-between rounded-xl bg-primary/10 px-3 py-2">
-        <span className="inline-flex items-center gap-2 text-sm font-bold text-primary">
-          <Check className="h-4 w-4" aria-hidden="true" />
-          Cupom {APPLIED_COUPON}
-        </span>
-        <span className="text-sm font-bold text-primary">
-          - {formatBRL(discount)}
-        </span>
-      </div>
+      {/* Cupom de desconto — começa vazio; nada é aplicado sem ação do cliente. */}
+      {appliedCoupon ? (
+        <div className="flex items-center justify-between rounded-xl bg-primary/10 px-3 py-2">
+          <span className="inline-flex items-center gap-2 text-sm font-bold text-primary">
+            <Check className="h-4 w-4" aria-hidden="true" />
+            Cupom {appliedCoupon}
+          </span>
+          <button
+            type="button"
+            onClick={removeCoupon}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
+            Remover
+          </button>
+        </div>
+      ) : (
+        <div>
+          <label
+            htmlFor="checkout-coupon"
+            className="mb-1.5 inline-flex items-center gap-2 text-sm font-semibold text-foreground"
+          >
+            <Tag className="h-4 w-4 text-primary" aria-hidden="true" />
+            Cupom de desconto
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="checkout-coupon"
+              value={couponInput}
+              onChange={(e) => setCouponInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  e.preventDefault()
+                  applyCoupon()
+                }
+              }}
+              placeholder="Digite seu cupom"
+              className="flex-1 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm uppercase text-foreground outline-none transition-colors placeholder:normal-case placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <button
+              type="button"
+              onClick={applyCoupon}
+              disabled={applyingCoupon || !couponInput.trim()}
+              className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {applyingCoupon ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                'Aplicar'
+              )}
+            </button>
+          </div>
+          {couponError && (
+            <p className="mt-2 text-xs font-medium text-destructive">
+              {couponError}
+            </p>
+          )}
+        </div>
+      )}
 
       <dl className="mt-4 space-y-2.5 text-sm">
         <div className="flex items-center justify-between">
@@ -523,10 +616,14 @@ export function CheckoutClient() {
             {formatBRL(subtotal)}
           </dd>
         </div>
-        <div className="flex items-center justify-between">
-          <dt className="text-muted-foreground">Desconto</dt>
-          <dd className="font-semibold text-primary">- {formatBRL(discount)}</dd>
-        </div>
+        {discount > 0 && (
+          <div className="flex items-center justify-between">
+            <dt className="text-muted-foreground">Desconto</dt>
+            <dd className="font-semibold text-primary">
+              - {formatBRL(discount)}
+            </dd>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Entrega</dt>
           <dd className="font-semibold text-foreground">

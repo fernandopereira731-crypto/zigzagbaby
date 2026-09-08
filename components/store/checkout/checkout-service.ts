@@ -34,6 +34,7 @@ export type CreateOrderInput = {
   deliveryMethod: string
   giftWrap: boolean
   notes?: string
+  couponCode?: string
 }
 
 export type CreateOrderResult = {
@@ -74,6 +75,7 @@ export async function createOrder(
     p_gift_wrap: input.giftWrap,
     p_notes: input.notes ?? null,
     p_profile_id: user?.id ?? null,
+    p_coupon_code: input.couponCode ?? null,
   })
 
   if (error) {
