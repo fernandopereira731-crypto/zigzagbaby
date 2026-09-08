@@ -322,9 +322,6 @@ export function CartClient() {
                       {couponError}
                     </p>
                   )}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Experimente: ZIGZAG10 ou BEMVINDO
-                  </p>
                 </div>
               )}
             </div>
