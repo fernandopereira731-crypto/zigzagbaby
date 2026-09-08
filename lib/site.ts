@@ -1,7 +1,7 @@
 // Configuração central da loja — fonte única de verdade para contato e redes sociais.
-// TODO (produção): substituir pelos dados oficiais quando o banco de dados / configurações
-// estiverem conectados. Alterar apenas aqui atualiza toda a loja.
-export const WHATSAPP_NUMBER = '5500000000000'
+// Alterar apenas aqui atualiza todos os links de WhatsApp da loja.
+// Número oficial Zig Zag Baby: (38) 99841-8629
+export const WHATSAPP_NUMBER = '5538998418629'
 
 /** Monta um link de WhatsApp com mensagem pré-preenchida. */
 export function whatsappUrl(message: string) {
