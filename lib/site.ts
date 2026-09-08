@@ -8,5 +8,6 @@ export function whatsappUrl(message: string) {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
 }
 
-export const INSTAGRAM_URL = 'https://instagram.com/zigzagbaby'
+// Perfil oficial Zig Zag Baby: @kids_zigzag
+export const INSTAGRAM_URL = 'https://www.instagram.com/kids_zigzag/'
 export const FACEBOOK_URL = 'https://facebook.com/zigzagbaby'
