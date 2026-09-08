@@ -10,7 +10,6 @@ import {
   Truck,
   Store,
   CalendarClock,
-  QrCode,
   CreditCard,
   Banknote,
   Wallet,
@@ -48,9 +47,9 @@ type Prefill = {
   state: string
 }
 
-const APPLIED_COUPON = 'ZIGZAG10'
-const COUPON_RATE = 0.1
-const PIX_DISCOUNT = 0.05
+  const APPLIED_COUPON = 'ZIGZAG10'
+  const COUPON_RATE = 0.1
+
 
 const deliveryOptions = [
   {
@@ -81,22 +80,16 @@ const deliveryOptions = [
 
 const paymentOptions = [
   {
-    id: 'pix',
-    icon: QrCode,
-    title: 'PIX',
-    desc: '5% de desconto à vista',
+    id: 'mercadopago',
+    icon: Wallet,
+    title: 'Cartão/PIX via Mercado Pago',
+    desc: 'Pagamento online seguro pelo Checkout Pro',
   },
   {
     id: 'card',
     icon: CreditCard,
     title: 'Cartão de crédito',
     desc: 'Em até 6x sem juros',
-  },
-  {
-    id: 'mercadopago',
-    icon: Wallet,
-    title: 'Cartão/PIX via Mercado Pago',
-    desc: 'Pagamento online seguro pelo Checkout Pro',
   },
   {
     id: 'cash',
@@ -180,7 +173,7 @@ export function CheckoutClient() {
   const { cartItems, cartCount, removeFromCart, ready } = useStore()
 
   const [delivery, setDelivery] = useState<string>('today')
-  const [payment, setPayment] = useState<string>('pix')
+  const [payment, setPayment] = useState<string>('mercadopago')
   const [summaryOpen, setSummaryOpen] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
@@ -238,9 +231,7 @@ export function CheckoutClient() {
   const discount = subtotal * COUPON_RATE
   const deliveryFee = deliveryOptions.find((o) => o.id === delivery)?.price ?? 0
   const total = subtotal - discount + deliveryFee
-  const pixTotal = total * (1 - PIX_DISCOUNT)
-  const isPix = payment === 'pix'
-  const finalTotal = isPix ? pixTotal : total
+  const finalTotal = total
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -557,18 +548,6 @@ export function CheckoutClient() {
         </span>
       </div>
 
-      <div className="mt-3 rounded-2xl bg-primary/10 p-4">
-        <div className="flex items-baseline justify-between">
-          <span className="text-sm font-bold text-primary">À vista no PIX</span>
-          <span className="text-xl font-extrabold text-primary">
-            {formatBRL(pixTotal)}
-          </span>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Economize {formatBRL(total - pixTotal)} pagando com PIX (5% off)
-        </p>
-      </div>
-
       {error && (
         <div className="mt-5 flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 p-3">
           <AlertCircle
@@ -656,7 +635,7 @@ export function CheckoutClient() {
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="text-base font-extrabold text-primary">
-              {formatBRL(pixTotal)}
+              {formatBRL(total)}
             </span>
             <ChevronDown
               className={cn(
@@ -964,9 +943,7 @@ export function CheckoutClient() {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 py-2.5 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.15)] backdrop-blur-md lg:hidden">
         <div className="flex items-center gap-3">
           <div className="flex flex-col leading-none">
-            <span className="text-[11px] text-muted-foreground">
-              {isPix ? 'Total no PIX' : 'Total'}
-            </span>
+            <span className="text-[11px] text-muted-foreground">Total</span>
             <span className="text-lg font-extrabold text-primary">
               {formatBRL(finalTotal)}
             </span>
