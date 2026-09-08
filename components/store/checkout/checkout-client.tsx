@@ -473,7 +473,7 @@ export function CheckoutClient() {
               Acompanhar meus pedidos
             </Link>
             <Link
-              href="/produtos"
+              href="/#produtos"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-border text-sm font-bold text-foreground transition-colors hover:border-primary/40"
             >
               Continuar comprando
@@ -499,7 +499,7 @@ export function CheckoutClient() {
             Adicione peças ao carrinho para finalizar o pedido.
           </p>
           <Link
-            href="/produtos"
+            href="/#produtos"
             className="mt-6 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
             Ver produtos

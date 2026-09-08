@@ -79,7 +79,7 @@ export function PaymentResult({
 
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
-            href="/produto"
+            href="/#produtos"
             className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
             Continuar comprando
