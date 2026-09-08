@@ -994,7 +994,7 @@ export function ReturnsPanel() {
     <div>
       <SectionTitle
         title="Trocas e devoluções"
-        description="Solicite trocas em até 30 dias. É rápido e sem burocracia."
+        description="Solicite trocas em até 10 dias. É rápido e sem burocracia."
       />
 
       <div className="mb-5 flex flex-col gap-3 rounded-3xl border border-border bg-card p-6 sm:flex-row sm:items-center sm:justify-between">

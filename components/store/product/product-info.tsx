@@ -343,7 +343,7 @@ export function ProductInfo({
         </li>
         <li className="flex items-start gap-3">
           <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-          <span className="text-sm text-foreground">Troca fácil em até 30 dias</span>
+          <span className="text-sm text-foreground">Troca fácil em até 10 dias</span>
         </li>
       </ul>
 

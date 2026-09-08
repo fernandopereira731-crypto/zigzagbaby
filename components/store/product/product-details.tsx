@@ -74,7 +74,7 @@ function buildTabs(product: PublicProduct): Tab[] {
     content: (
       <div className="space-y-3">
         <p>
-          Você tem até 30 dias para trocar ou devolver o produto. A peça deve
+          Você tem até 10 dias para trocar ou devolver o produto. A peça deve
           estar sem uso, com etiqueta e na embalagem original.
         </p>
         <p>
