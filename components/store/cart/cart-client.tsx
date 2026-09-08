@@ -37,8 +37,6 @@ type DisplayItem = {
   quantity: number
 }
 
-const PIX_DISCOUNT = 0.05
-
 const WHATSAPP_URL = whatsappUrl(
   'Olá! Quero finalizar a compra do meu carrinho.',
 )
@@ -115,7 +113,6 @@ export function CartClient() {
   const afterDiscount = subtotal - discount
   const shipping = 0
   const total = afterDiscount + shipping
-  const pixTotal = total * (1 - PIX_DISCOUNT)
 
   if (!ready) {
     return (
@@ -370,21 +367,6 @@ export function CartClient() {
               </span>
             </div>
 
-            {/* PIX highlight */}
-            <div className="mt-3 rounded-2xl bg-primary/10 p-4">
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm font-bold text-primary">
-                  À vista no PIX
-                </span>
-                <span className="text-xl font-extrabold text-primary">
-                  {formatBRL(pixTotal)}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Economize {formatBRL(total - pixTotal)} pagando com PIX (5% off)
-              </p>
-            </div>
-
             {/* Actions */}
             <div className="mt-5 flex flex-col gap-3">
               <Link
@@ -431,11 +413,9 @@ export function CartClient() {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 py-2.5 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.15)] backdrop-blur-md lg:hidden">
         <div className="flex items-center gap-3">
           <div className="flex flex-col leading-none">
-            <span className="text-[11px] text-muted-foreground">
-              Total no PIX
-            </span>
+            <span className="text-[11px] text-muted-foreground">Total</span>
             <span className="text-lg font-extrabold text-primary">
-              {formatBRL(pixTotal)}
+              {formatBRL(total)}
             </span>
           </div>
           <a
